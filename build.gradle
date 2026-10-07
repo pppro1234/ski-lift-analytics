@@ -1,0 +1,108 @@
+plugins {
+// Build Java: https://docs.gradle.org/current/userguide/building_java_projects.html
+    id 'java'
+    id 'org.springframework.boot' version '3.4.4'
+    id 'io.spring.dependency-management' version '1.1.7'
+
+// https://docs.gradle.org/current/userguide/pmd_plugin.html#header
+    id 'pmd'
+
+// https://docs.gradle.org/current/userguide/jacoco_plugin.html
+    id 'jacoco'
+}
+
+group = 'skiliftanalytics'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+pmd {
+    ignoreFailures=true
+    pmdTest.enabled=false
+
+    consoleOutput = true
+    toolVersion = "7.0.0"
+    rulesMinimumPriority = 5
+    ruleSets = ["category/java/errorprone.xml",
+                "category/java/bestpractices.xml",
+                "category/java/codestyle.xml"]
+}
+
+javadoc {
+    doLast {
+        String fixedBuildDir = buildDir.toString().replace('\\', '/')
+        println "file:///$fixedBuildDir/docs/javadoc/index.html"
+    }
+}
+
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+jacocoTestReport {
+    reports {
+        html.destination file("${buildDir}/jacocoHtml")
+    }
+    doLast {
+        String fixedBuildDir = buildDir.toString().replace('\\', '/')
+        println "file:///$fixedBuildDir/jacocoHtml/index.html"
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                // minimum percentage of code coverage
+                minimum = 0.2
+            }
+        }
+        rule {
+            enabled = false
+            element = 'CLASS'
+            includes = ['org.gradle.*']
+            limit {
+                counter = 'LINE'
+                value = 'TOTALCOUNT'
+                maximum = 0.3
+            }
+        }
+    }
+}
+
+// Fail the build if code coverage isn't high enough
+check.dependsOn jacocoTestCoverageVerification
+
+// Run code coverage after tests run
+jacocoTestReport.mustRunAfter test
+
+
+task doAll {
+    // Runs a java build. Imported from the java plugin
+    dependsOn build
+    // Runs all the tests. Imported from the java plugin.
+    dependsOn test
+    // Runs pmd. Imported by pmd plugin
+    dependsOn check
+    // Runs java doc. Imported from the java plugin
+    dependsOn javadoc
+    doLast {
+        println 'all done!'
+    }
+}
+
+springBoot {
+    mainClass = 'skiliftanalytics.SkiLiftAnalyticsApplication'
+}
+
+test {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
